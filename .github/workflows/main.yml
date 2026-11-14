@@ -1,13 +1,18 @@
+
 name: Build AnimeScape AI Studio APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java
@@ -20,7 +25,6 @@ jobs:
         uses: android-actions/setup-android@v4
         with:
           accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: false
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
       - name: Set up Gradle
@@ -28,13 +32,23 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Extract Android project
+        run: |
+          unzip -q AnimeScapeAI-Studio-source.zip -d source
+          SETTINGS_FILE=$(find source -name settings.gradle -print -quit)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: settings.gradle was not found in the ZIP."
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        run: gradle -p "$PROJECT_DIR" assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AnimeScapeAI-Studio-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: source/**/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          
